@@ -2,6 +2,34 @@ __pycache__/
 archive/
 .omx/
 .clawd-agents/
+
 # Claude Code local artifacts
 .claude/settings.local.json
 .claude/sessions/
+
+# Ignis Claw local artifacts
+.ignis/
+.claw/
+
+# Rust build artifacts
+rust/target/
+desktop/src-tauri/target/
+
+# Node modules
+desktop/node_modules/
+node_modules/
+
+# Installers & binaries
+*.exe
+!desktop/src-tauri/icons/*.ico
+
+# Sandbox artifacts
+.sandbox-home/
+.sandbox-tmp/
+
+# Port sessions
+.port_sessions/
+
+# OS files
+Thumbs.db
+.DS_Store

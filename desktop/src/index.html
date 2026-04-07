@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ignis Claw 🔥</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ONBOARDING SCREEN -->
+  <div id="onboarding" class="screen">
+    <div class="onboard-container">
+      <div class="onboard-logo">
+        <span class="fire-icon">🔥</span>
+        <h1>Ignis Claw</h1>
+        <p class="tagline">AI Coding Assistant</p>
+      </div>
+      <div class="onboard-form">
+        <div class="form-group">
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="ollama-cloud">Ollama Cloud</option>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="custom">Custom OpenAI-Compatible</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="api-key">API Key</label>
+          <input type="password" id="api-key" placeholder="Paste your API key here..." />
+        </div>
+        <div class="form-group">
+          <label for="base-url">Base URL</label>
+          <input type="text" id="base-url" value="https://ollama.com/v1" />
+        </div>
+        <div class="form-group">
+          <label for="model">Model</label>
+          <input type="text" id="model" value="qwen3-coder:480b" placeholder="e.g. llama3, gpt-4o" />
+        </div>
+        <div id="connection-status" class="connection-status"></div>
+        <div class="onboard-actions">
+          <button id="test-btn" class="btn-secondary">Test Connection</button>
+          <button id="save-btn" class="btn-primary">Start Chatting 🔥</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen" class="screen hidden">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <span class="fire-icon-sm">🔥</span>
+        <span class="sidebar-title">Ignis</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button id="new-chat-btn" class="sidebar-btn active" title="New Chat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Chat</span>
+        </button>
+      </nav>
+      <div id="chat-history" class="chat-history"></div>
+      <div class="sidebar-footer">
+        <button id="settings-btn" class="sidebar-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
+        <div class="model-badge" id="model-badge"></div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main id="chat-main">
+      <div id="chat-header" class="chat-header">
+        <div class="header-left">
+          <button id="toggle-sidebar" class="icon-btn" title="Toggle Sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <h2>Ignis Claw <span class="version-tag">v1.0</span></h2>
+        </div>
+        <div class="header-right">
+          <span id="status-dot" class="status-dot online"></span>
+          <span id="status-text" class="status-text">Ready</span>
+        </div>
+      </div>
+
+      <div id="messages" class="messages">
+        <div class="welcome-message">
+          <div class="welcome-logo">🔥</div>
+          <h2>Welcome to Ignis Claw</h2>
+          <p>Your AI coding assistant. Ask me anything about code, debugging, or building software.</p>
+          <div class="quick-actions">
+            <button class="quick-btn" data-prompt="Explain the code in my current project">💡 Explain Code</button>
+            <button class="quick-btn" data-prompt="Help me debug an error">🐛 Debug Error</button>
+            <button class="quick-btn" data-prompt="Write a function that">⚡ Write Code</button>
+            <button class="quick-btn" data-prompt="Refactor this code to be more efficient">🔧 Refactor</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea id="user-input" placeholder="Ask Ignis anything..." rows="1"></textarea>
+          <button id="send-btn" class="send-btn" title="Send message">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+          </button>
+        </div>
+        <p class="input-hint">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
