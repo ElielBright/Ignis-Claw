@@ -1,0 +1,5 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="24" fill="#0D1117"/>
+  <text x="64" y="80" text-anchor="middle" font-size="64">🔥</text>
+  <path d="M32 96 L64 104 L96 96" stroke="#F97316" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>

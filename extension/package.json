@@ -1,0 +1,86 @@
+{
+  "name": "ignis-claw",
+  "displayName": "Ignis Claw",
+  "description": "AI coding assistant – chat with AI, upload UI designs, build projects, directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "ignis-claw",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Chat",
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:ignis-claw.start",
+    "onCommand:ignis-claw.uploadDesign"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0D1117",
+    "theme": "dark"
+  },
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ignis-claw.start",
+        "title": "Ignis Claw: Open Chat"
+      },
+      {
+        "command": "ignis-claw.uploadDesign",
+        "title": "Ignis Claw: Upload UI Design Image"
+      }
+    ],
+    "configuration": {
+      "title": "Ignis Claw",
+      "properties": {
+        "ignis-claw.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the AI provider"
+        },
+        "ignis-claw.baseUrl": {
+          "type": "string",
+          "default": "https://ollama.com/v1",
+          "description": "Base URL for the OpenAI-compatible API"
+        },
+        "ignis-claw.model": {
+          "type": "string",
+          "default": "qwen3-coder:480b",
+          "description": "Model name to use"
+        },
+        "ignis-claw.provider": {
+          "type": "string",
+          "default": "ollama-cloud",
+          "enum": [
+            "ollama-cloud",
+            "openai",
+            "openrouter",
+            "custom"
+          ],
+          "description": "AI provider"
+        },
+        "ignis-claw.clawPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to claw.exe (optional – for advanced tool execution)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
