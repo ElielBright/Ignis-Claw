@@ -11,8 +11,8 @@ if (-Not (Test-Path $ExePath)) {
 }
 
 # Set environment variables for Ollama
-$env:OPENAI_API_KEY="5ca6aaf112c64a3b9bf62ea351dade35.WBa0EVz9xsC1N-EnHWehHF9N"
-$env:OPENAI_BASE_URL="https://ollama.com/v1"
+$env:OPENAI_API_KEY="...."
+$env:OPENAI_BASE_URL="...1"
 $env:HOME=$env:USERPROFILE
 
 Write-Host "Starting Ignis Claw AI with Ollama..." -ForegroundColor Green
