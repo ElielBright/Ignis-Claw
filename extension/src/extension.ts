@@ -11,6 +11,12 @@ export function getContext(): vscode.ExtensionContext {
 export function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
 
+  const config = vscode.workspace.getConfiguration('ignis-claw');
+  const currentModel = config.inspect<string>('model');
+  if (currentModel?.globalValue) {
+    config.update('model', undefined, vscode.ConfigurationTarget.Global);
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('ignis-claw.start', () => {
       ChatPanel.createOrShow(context.extensionUri, context);

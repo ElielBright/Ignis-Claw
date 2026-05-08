@@ -45,6 +45,11 @@ function getContext() {
 }
 function activate(context) {
     extensionContext = context;
+    const config = vscode.workspace.getConfiguration('ignis-claw');
+    const currentModel = config.inspect('model');
+    if (currentModel?.globalValue) {
+        config.update('model', undefined, vscode.ConfigurationTarget.Global);
+    }
     context.subscriptions.push(vscode.commands.registerCommand('ignis-claw.start', () => {
         chatPanel_1.ChatPanel.createOrShow(context.extensionUri, context);
     }));

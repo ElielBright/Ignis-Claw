@@ -36,7 +36,7 @@
   const chatHistoryEl = $("#chat-history");
 
   const providerDefaults = {
-    "ollama-cloud": { url: "https://ollama.com/v1", model: "qwen3-coder:480b" },
+    "ollama-cloud": { url: "https://ollama.com/v1", model: "gemma4:31b" },
     "openai": { url: "https://api.openai.com/v1", model: "gpt-4o" },
     "openrouter": { url: "https://openrouter.ai/api/v1", model: "meta-llama/llama-3-70b" },
     "custom": { url: "http://127.0.0.1:11434/v1", model: "llama3" },
@@ -89,11 +89,11 @@
         renderChatHistory();
         break;
       case "conversationLoaded":
-        loadConversationMessages(msg.messages, msg.title);
+        loadConversationMessages(msg.id, msg.messages, msg.title);
         break;
       case "cancelled":
         removeCurrentStream();
-        appendMessage("assistant", "_\[Response cancelled\]_");
+        appendMessage("assistant", "*[Response cancelled]*");
         break;
     }
   });
@@ -286,7 +286,7 @@
     });
   }
 
-  function loadConversationMessages(messages, title) {
+  function loadConversationMessages(id, messages, title) {
     messagesEl.innerHTML = "";
     chatHistory = messages || [];
     attachedFiles = [];
@@ -300,7 +300,7 @@
     }
 
     currentConversation = {
-      id: conversations.find(c => c.title === title || c.id === Date.now())?.id || Date.now(),
+      id: id,
       title: title || "Chat",
       messages: messages,
     };

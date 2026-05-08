@@ -42,7 +42,7 @@ const docModalClose = $("#doc-modal-close");
 
 // ===== PROVIDER DEFAULTS =====
 const providerDefaults = {
-  "ollama-cloud": { url: "https://ollama.com/v1", model: "qwen3-coder:480b" },
+    "ollama-cloud": { url: "https://ollama.com/v1", model: "gemma4:31b" },
   "openai": { url: "https://api.openai.com/v1", model: "gpt-4o" },
   "openrouter": { url: "https://openrouter.ai/api/v1", model: "meta-llama/llama-3-70b" },
   "custom": { url: "http://127.0.0.1:11434/v1", model: "llama3" },

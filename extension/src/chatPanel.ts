@@ -74,7 +74,7 @@ export class ChatPanel {
     const names = files.map((f) => f.name).join(', ');
     this.panel.webview.postMessage({
       type: 'filesAttached',
-      files: files.map((f) => ({ name: f.name, isImage: f.isImage })),
+      files: this.pendingFiles.map((f) => ({ name: f.name, isImage: f.isImage })),
     });
     vscode.window.showInformationMessage(`Uploaded ${files.length} file(s) to Ignis Claw: ${names}`);
   }
@@ -151,10 +151,13 @@ export class ChatPanel {
         this.handleRemoveFile(msg.index);
         break;
       case 'newChat':
-        this.saveConversations();
+        if (this.messages.length > 0) {
+          this.saveConversations();
+        }
         this.messages = [];
         this.pendingFiles = [];
         this.currentConversationId = Date.now();
+        this.sendConversationsList();
         break;
       case 'loadConversations':
         this.sendConversationsList();
@@ -186,14 +189,16 @@ export class ChatPanel {
   }
 
   private loadConversation(id: number) {
-    this.saveConversations();
+    if (this.messages.length > 0) {
+      this.saveConversations();
+    }
     const conversations = this.getConversations();
     const conv = conversations.find(c => c.id === id);
     if (conv) {
       this.messages = conv.messages;
       this.currentConversationId = conv.id;
       this.pendingFiles = [];
-      this.postMessage({ type: 'conversationLoaded', messages: conv.messages, title: conv.title });
+      this.postMessage({ type: 'conversationLoaded', id: conv.id, messages: conv.messages, title: conv.title });
     }
   }
 
@@ -409,7 +414,7 @@ export class ChatPanel {
     return {
       apiKey: config.get<string>('apiKey') || '',
       baseUrl: config.get<string>('baseUrl') || 'https://ollama.com/v1',
-      model: config.get<string>('model') || 'qwen3-coder:480b',
+      model: config.get<string>('model') || 'gemma4:31b',
       provider: config.get<string>('provider') || 'ollama-cloud',
       clawPath: config.get<string>('clawPath') || '',
     };
@@ -491,7 +496,7 @@ export class ChatPanel {
         </div>
         <div class="form-group">
           <label for="model">Model</label>
-          <input type="text" id="model" value="qwen3-coder:480b" placeholder="e.g. gpt-4o, claude-sonnet" />
+          <input type="text" id="model" value="gemma4:31b" placeholder="e.g. gpt-4o, claude-sonnet" />
         </div>
         <div id="connection-status" class="connection-status"></div>
         <div class="onboard-actions">

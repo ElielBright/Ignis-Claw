@@ -23,7 +23,7 @@ impl Default for AppSettings {
         Self {
             api_key: String::new(),
             base_url: "https://ollama.com/v1".to_string(),
-            model: "qwen3-coder:480b".to_string(),
+            model: "gemma4:31b".to_string(),
             provider: "ollama-cloud".to_string(),
         }
     }

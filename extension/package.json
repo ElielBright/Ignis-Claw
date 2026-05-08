@@ -54,7 +54,7 @@
         },
         "ignis-claw.model": {
           "type": "string",
-          "default": "qwen3-coder:480b",
+          "default": "gemma4:31b",
           "description": "Model name to use"
         },
         "ignis-claw.provider": {
