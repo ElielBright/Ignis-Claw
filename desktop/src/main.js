@@ -29,6 +29,16 @@ const newChatBtn = $("#new-chat-btn");
 const toggleSidebar = $("#toggle-sidebar");
 const sidebar = $("#sidebar");
 const chatHistoryEl = $("#chat-history");
+const docBtn = $("#doc-btn");
+const docModal = $("#doc-modal");
+const docTopic = $("#doc-topic");
+const docFormat = $("#doc-format");
+const docContent = $("#doc-content");
+const docImages = $("#doc-images");
+const docStatus = $("#doc-status");
+const docGenerateBtn = $("#doc-generate-btn");
+const docCancelBtn = $("#doc-cancel-btn");
+const docModalClose = $("#doc-modal-close");
 
 // ===== PROVIDER DEFAULTS =====
 const providerDefaults = {
@@ -141,6 +151,25 @@ function setupEventListeners() {
     });
   });
 
+  // Document modal
+  docBtn.addEventListener("click", () => {
+    docModal.classList.remove("hidden");
+    docTopic.value = "";
+    docFormat.value = "pdf";
+    docContent.value = "";
+    docImages.value = "";
+    docStatus.textContent = "";
+    docStatus.className = "doc-status";
+  });
+
+  docModalClose.addEventListener("click", closeDocModal);
+  docCancelBtn.addEventListener("click", closeDocModal);
+  docModal.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-overlay")) closeDocModal();
+  });
+
+  docGenerateBtn.addEventListener("click", generateDocument);
+
   // Stream listener
   listen("stream-chunk", (event) => {
     const { content, done } = event.payload;
@@ -150,6 +179,57 @@ function setupEventListeners() {
     }
     appendStreamContent(content);
   });
+}
+
+function closeDocModal() {
+  docModal.classList.add("hidden");
+}
+
+async function generateDocument() {
+  const topic = docTopic.value.trim();
+  const format = docFormat.value;
+  const content = docContent.value.trim();
+  const imagesStr = docImages.value.trim();
+
+  if (!topic) {
+    docStatus.textContent = "❌ Please enter a topic";
+    docStatus.className = "doc-status error";
+    return;
+  }
+  if (!content) {
+    docStatus.textContent = "❌ Please enter document content";
+    docStatus.className = "doc-status error";
+    return;
+  }
+
+  const imageUrls = imagesStr ? imagesStr.split("\n").map(s => s.trim()).filter(s => s.length > 0) : [];
+
+  docGenerateBtn.disabled = true;
+  docGenerateBtn.textContent = "Generating...";
+  docStatus.textContent = "⏳ Creating document...";
+  docStatus.className = "doc-status";
+
+  try {
+    const result = await invoke("create_document", {
+      topic,
+      format,
+      content,
+      imageUrls,
+    });
+
+    docStatus.innerHTML = `✅ ${format.toUpperCase()} created!<br><small>${result.path}</small>`;
+    docStatus.className = "doc-status success";
+
+    // Add to chat
+    appendMessage("assistant", `📄 Created **${format.toUpperCase()}** document: **${topic}**\n\nSaved to: \`${result.path}\``);
+    chatHistory.push({ role: "assistant", content: `📄 Created ${format.toUpperCase()} document: ${topic}\nSaved to: ${result.path}` });
+  } catch (err) {
+    docStatus.textContent = `❌ Error: ${err}`;
+    docStatus.className = "doc-status error";
+  } finally {
+    docGenerateBtn.disabled = false;
+    docGenerateBtn.textContent = "Generate 🔥";
+  }
 }
 
 // ===== SCREENS =====

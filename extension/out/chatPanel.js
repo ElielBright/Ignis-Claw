@@ -39,11 +39,14 @@ const apiClient_1 = require("./apiClient");
 const fileHandler_1 = require("./fileHandler");
 const tools_1 = require("./tools");
 class ChatPanel {
-    constructor(extensionUri) {
+    constructor(extensionUri, context) {
         this.extensionUri = extensionUri;
         this.messages = [];
+        this.currentConversationId = 0;
         this.disposables = [];
         this.pendingFiles = [];
+        this.abortController = null;
+        this.context = context;
         ChatPanel.currentPanel = this;
         this.panel = vscode.window.createWebviewPanel(ChatPanel.viewType, 'Ignis Claw 🔥', vscode.ViewColumn.Beside, {
             enableScripts: true,
@@ -52,13 +55,14 @@ class ChatPanel {
                 vscode.Uri.joinPath(extensionUri, 'media'),
             ],
         });
-        this.panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'icon.png');
+        this.panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'icon.svg');
         this.panel.webview.html = this.getHtml();
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.onDidReceiveMessage((msg) => this.handleMessage(msg), null, this.disposables);
         this.panel.webview.onDidReceiveMessage((msg) => {
             if (msg.type === 'ready') {
                 this.sendSettings();
+                this.sendConversationsList();
             }
         });
     }
@@ -75,18 +79,50 @@ class ChatPanel {
         vscode.window.showInformationMessage(`Uploaded ${files.length} file(s) to Ignis Claw: ${names}`);
     }
     dispose() {
+        this.saveConversations();
         ChatPanel.currentPanel = undefined;
         this.panel.dispose();
         for (const d of this.disposables)
             d.dispose();
     }
-    static createOrShow(extensionUri) {
+    static createOrShow(extensionUri, context) {
         if (ChatPanel.currentPanel) {
             ChatPanel.currentPanel.reveal();
             return ChatPanel.currentPanel;
         }
-        ChatPanel.currentPanel = new ChatPanel(extensionUri);
+        ChatPanel.currentPanel = new ChatPanel(extensionUri, context);
         return ChatPanel.currentPanel;
+    }
+    // --- Conversation Persistence ---
+    getConversations() {
+        return this.context.globalState.get(ChatPanel.CONVERSATIONS_KEY, []);
+    }
+    saveConversations() {
+        const conversations = this.getConversations();
+        const existing = conversations.findIndex(c => c.id === this.currentConversationId);
+        const entry = {
+            id: this.currentConversationId,
+            title: conversations.find(c => c.id === this.currentConversationId)?.title || 'New Chat',
+            messages: this.messages,
+            createdAt: conversations.find(c => c.id === this.currentConversationId)?.createdAt || Date.now(),
+            updatedAt: Date.now(),
+        };
+        if (existing >= 0) {
+            conversations[existing] = entry;
+        }
+        else {
+            conversations.push(entry);
+        }
+        this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+    }
+    deleteConversation(id) {
+        const conversations = this.getConversations().filter(c => c.id !== id);
+        this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+        if (this.currentConversationId === id) {
+            this.messages = [];
+            this.pendingFiles = [];
+            this.currentConversationId = Date.now();
+        }
     }
     // --- Message handling ---
     async handleMessage(msg) {
@@ -107,10 +143,70 @@ class ChatPanel {
                 this.handleRemoveFile(msg.index);
                 break;
             case 'newChat':
+                this.saveConversations();
                 this.messages = [];
                 this.pendingFiles = [];
+                this.currentConversationId = Date.now();
+                break;
+            case 'loadConversations':
+                this.sendConversationsList();
+                break;
+            case 'loadConversation':
+                this.loadConversation(msg.id);
+                break;
+            case 'deleteConversation':
+                this.deleteConversation(msg.id);
+                this.sendConversationsList();
+                break;
+            case 'renameConversation':
+                this.renameConversation(msg.id, msg.title);
+                break;
+            case 'cancelStream':
+                this.cancelStream();
                 break;
         }
+    }
+    sendConversationsList() {
+        const conversations = this.getConversations().map(c => ({
+            id: c.id,
+            title: c.title,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        }));
+        this.postMessage({ type: 'conversationsList', conversations });
+    }
+    loadConversation(id) {
+        this.saveConversations();
+        const conversations = this.getConversations();
+        const conv = conversations.find(c => c.id === id);
+        if (conv) {
+            this.messages = conv.messages;
+            this.currentConversationId = conv.id;
+            this.pendingFiles = [];
+            this.postMessage({ type: 'conversationLoaded', messages: conv.messages, title: conv.title });
+        }
+    }
+    cancelStream() {
+        if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+        }
+        this.postMessage({ type: 'cancelled' });
+        this.postMessage({ type: 'streamEnd' });
+    }
+    renameConversation(id, title) {
+        const conversations = this.getConversations();
+        const conv = conversations.find(c => c.id === id);
+        if (conv) {
+            conv.title = title;
+        }
+        if (id === this.currentConversationId) {
+            const self = conversations.find(c => c.id === this.currentConversationId);
+            if (self)
+                self.title = title;
+        }
+        this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+        this.sendConversationsList();
     }
     handleRemoveFile(index) {
         if (index >= 0 && index < this.pendingFiles.length) {
@@ -154,6 +250,7 @@ class ChatPanel {
         this.messages.push({ role: 'user', content: userContent });
         this.pendingFiles = [];
         this.postMessage({ type: 'userMessage', text });
+        this.saveConversations();
         const systemPrompt = 'You are Ignis Claw (Ignis for short), a powerful AI coding assistant running as a VS Code extension. ' +
             'You help users with software engineering tasks: writing code, explaining code, ' +
             'debugging, refactoring, building projects from scratch, and analyzing UI designs. ' +
@@ -171,7 +268,11 @@ class ChatPanel {
         let toolResultMessages = [];
         let turnCount = 0;
         const maxTurns = 25;
-        while (turnCount < maxTurns) {
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        let cancelled = false;
+        signal.addEventListener('abort', () => { cancelled = true; }, { once: true });
+        for (let turns = 0; turns < maxTurns && !cancelled; turns++) {
             turnCount++;
             const allMessages = [
                 { role: 'system', content: systemPrompt },
@@ -197,7 +298,9 @@ class ChatPanel {
                     hadError = true;
                     this.postMessage({ type: 'error', text: error });
                 },
-            }, tools_1.toolDefinitions);
+            }, tools_1.toolDefinitions, signal);
+            if (cancelled)
+                break;
             if (hadError) {
                 this.postMessage({ type: 'streamEnd' });
                 return;
@@ -205,6 +308,8 @@ class ChatPanel {
             this.postMessage({ type: 'streamEnd' });
             if (currentToolCalls.length === 0) {
                 this.messages.push({ role: 'assistant', content: currentText });
+                this.saveConversations();
+                this.sendConversationsList();
                 return;
             }
             this.messages.push({
@@ -235,10 +340,13 @@ class ChatPanel {
             }
             toolResultMessages = toolCallResults;
         }
-        this.messages.push({
-            role: 'assistant',
-            content: `Reached maximum of ${maxTurns} tool call turns. If you need more, please ask me to continue.`,
-        });
+        this.abortController = null;
+        if (!cancelled) {
+            this.messages.push({
+                role: 'assistant',
+                content: `Reached maximum of ${maxTurns} tool call turns. If you need more, please ask me to continue.`,
+            });
+        }
     }
     async handleUploadFile() {
         const files = await (0, fileHandler_1.uploadDesign)();
@@ -407,4 +515,5 @@ class ChatPanel {
 }
 exports.ChatPanel = ChatPanel;
 ChatPanel.viewType = 'ignisClaw.chat';
+ChatPanel.CONVERSATIONS_KEY = 'ignis-claw.conversations';
 //# sourceMappingURL=chatPanel.js.map

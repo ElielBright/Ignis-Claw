@@ -3,6 +3,14 @@ import { streamChatCompletion, ChatMessage } from './apiClient';
 import { uploadDesign, UploadedFile, buildFileContextMessage } from './fileHandler';
 import { toolDefinitions, executeTool, ToolCall } from './tools';
 
+interface Conversation {
+  id: number;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface VSCodeSettings {
   apiKey: string;
   baseUrl: string;
@@ -13,13 +21,18 @@ interface VSCodeSettings {
 
 export class ChatPanel {
   private static readonly viewType = 'ignisClaw.chat';
+  private static readonly CONVERSATIONS_KEY = 'ignis-claw.conversations';
 
   private panel: vscode.WebviewPanel;
   private messages: ChatMessage[] = [];
+  private currentConversationId: number = 0;
   private disposables: vscode.Disposable[] = [];
   private pendingFiles: UploadedFile[] = [];
+  private abortController: AbortController | null = null;
+  private context: vscode.ExtensionContext;
 
-  constructor(private extensionUri: vscode.Uri) {
+  constructor(private extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+    this.context = context;
     ChatPanel.currentPanel = this;
     this.panel = vscode.window.createWebviewPanel(
       ChatPanel.viewType,
@@ -34,7 +47,7 @@ export class ChatPanel {
       }
     );
 
-    this.panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'icon.png');
+    this.panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'icon.svg');
     this.panel.webview.html = this.getHtml();
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -47,6 +60,7 @@ export class ChatPanel {
     this.panel.webview.onDidReceiveMessage((msg) => {
       if (msg.type === 'ready') {
         this.sendSettings();
+        this.sendConversationsList();
       }
     });
   }
@@ -66,6 +80,7 @@ export class ChatPanel {
   }
 
   dispose() {
+    this.saveConversations();
     ChatPanel.currentPanel = undefined;
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();
@@ -73,13 +88,47 @@ export class ChatPanel {
 
   private static currentPanel: ChatPanel | undefined;
 
-  static createOrShow(extensionUri: vscode.Uri): ChatPanel {
+  static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext): ChatPanel {
     if (ChatPanel.currentPanel) {
       ChatPanel.currentPanel.reveal();
       return ChatPanel.currentPanel;
     }
-    ChatPanel.currentPanel = new ChatPanel(extensionUri);
+    ChatPanel.currentPanel = new ChatPanel(extensionUri, context);
     return ChatPanel.currentPanel;
+  }
+
+  // --- Conversation Persistence ---
+
+  private getConversations(): Conversation[] {
+    return this.context.globalState.get<Conversation[]>(ChatPanel.CONVERSATIONS_KEY, []);
+  }
+
+  private saveConversations() {
+    const conversations = this.getConversations();
+    const existing = conversations.findIndex(c => c.id === this.currentConversationId);
+    const entry: Conversation = {
+      id: this.currentConversationId,
+      title: conversations.find(c => c.id === this.currentConversationId)?.title || 'New Chat',
+      messages: this.messages,
+      createdAt: conversations.find(c => c.id === this.currentConversationId)?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+    if (existing >= 0) {
+      conversations[existing] = entry;
+    } else {
+      conversations.push(entry);
+    }
+    this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+  }
+
+  private deleteConversation(id: number) {
+    const conversations = this.getConversations().filter(c => c.id !== id);
+    this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+    if (this.currentConversationId === id) {
+      this.messages = [];
+      this.pendingFiles = [];
+      this.currentConversationId = Date.now();
+    }
   }
 
   // --- Message handling ---
@@ -102,10 +151,73 @@ export class ChatPanel {
         this.handleRemoveFile(msg.index);
         break;
       case 'newChat':
+        this.saveConversations();
         this.messages = [];
         this.pendingFiles = [];
+        this.currentConversationId = Date.now();
+        break;
+      case 'loadConversations':
+        this.sendConversationsList();
+        break;
+      case 'loadConversation':
+        this.loadConversation(msg.id);
+        break;
+      case 'deleteConversation':
+        this.deleteConversation(msg.id);
+        this.sendConversationsList();
+        break;
+      case 'renameConversation':
+        this.renameConversation(msg.id, msg.title);
+        break;
+      case 'cancelStream':
+        this.cancelStream();
         break;
     }
+  }
+
+  private sendConversationsList() {
+    const conversations = this.getConversations().map(c => ({
+      id: c.id,
+      title: c.title,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+    this.postMessage({ type: 'conversationsList', conversations });
+  }
+
+  private loadConversation(id: number) {
+    this.saveConversations();
+    const conversations = this.getConversations();
+    const conv = conversations.find(c => c.id === id);
+    if (conv) {
+      this.messages = conv.messages;
+      this.currentConversationId = conv.id;
+      this.pendingFiles = [];
+      this.postMessage({ type: 'conversationLoaded', messages: conv.messages, title: conv.title });
+    }
+  }
+
+  private cancelStream() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.postMessage({ type: 'cancelled' });
+    this.postMessage({ type: 'streamEnd' });
+  }
+
+  private renameConversation(id: number, title: string) {
+    const conversations = this.getConversations();
+    const conv = conversations.find(c => c.id === id);
+    if (conv) {
+      conv.title = title;
+    }
+    if (id === this.currentConversationId) {
+      const self = conversations.find(c => c.id === this.currentConversationId);
+      if (self) self.title = title;
+    }
+    this.context.globalState.update(ChatPanel.CONVERSATIONS_KEY, conversations);
+    this.sendConversationsList();
   }
 
   private handleRemoveFile(index: number) {
@@ -157,6 +269,7 @@ export class ChatPanel {
     this.pendingFiles = [];
 
     this.postMessage({ type: 'userMessage', text });
+    this.saveConversations();
 
     const systemPrompt =
       'You are Ignis Claw (Ignis for short), a powerful AI coding assistant running as a VS Code extension. ' +
@@ -179,7 +292,12 @@ export class ChatPanel {
     let turnCount = 0;
     const maxTurns = 25;
 
-    while (turnCount < maxTurns) {
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+    let cancelled = false;
+    signal.addEventListener('abort', () => { cancelled = true; }, { once: true });
+
+    for (let turns = 0; turns < maxTurns && !cancelled; turns++) {
       turnCount++;
 
       const allMessages: ChatMessage[] = [
@@ -213,8 +331,11 @@ export class ChatPanel {
             this.postMessage({ type: 'error', text: error });
           },
         },
-        toolDefinitions
+        toolDefinitions,
+        signal
       );
+
+      if (cancelled) break;
 
       if (hadError) {
         this.postMessage({ type: 'streamEnd' });
@@ -225,6 +346,8 @@ export class ChatPanel {
 
       if (currentToolCalls.length === 0) {
         this.messages.push({ role: 'assistant', content: currentText });
+        this.saveConversations();
+        this.sendConversationsList();
         return;
       }
 
@@ -262,10 +385,14 @@ export class ChatPanel {
       toolResultMessages = toolCallResults;
     }
 
-    this.messages.push({
-      role: 'assistant',
-      content: `Reached maximum of ${maxTurns} tool call turns. If you need more, please ask me to continue.`,
-    });
+    this.abortController = null;
+
+    if (!cancelled) {
+      this.messages.push({
+        role: 'assistant',
+        content: `Reached maximum of ${maxTurns} tool call turns. If you need more, please ask me to continue.`,
+      });
+    }
   }
 
   private async handleUploadFile() {

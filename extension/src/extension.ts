@@ -2,10 +2,18 @@ import * as vscode from 'vscode';
 import { ChatPanel } from './chatPanel';
 import { uploadDesign } from './fileHandler';
 
+let extensionContext: vscode.ExtensionContext;
+
+export function getContext(): vscode.ExtensionContext {
+  return extensionContext;
+}
+
 export function activate(context: vscode.ExtensionContext) {
+  extensionContext = context;
+
   context.subscriptions.push(
     vscode.commands.registerCommand('ignis-claw.start', () => {
-      ChatPanel.createOrShow(context.extensionUri);
+      ChatPanel.createOrShow(context.extensionUri, context);
     })
   );
 
@@ -14,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
       const files = await uploadDesign();
       if (!files) return;
 
-      const panel = ChatPanel.createOrShow(context.extensionUri);
+      const panel = ChatPanel.createOrShow(context.extensionUri, context);
       panel.addFilesToContext(files);
     })
   );

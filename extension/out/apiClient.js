@@ -37,7 +37,7 @@ exports.streamChatCompletion = streamChatCompletion;
 const https = __importStar(require("https"));
 const http = __importStar(require("http"));
 const url_1 = require("url");
-async function streamChatCompletion(messages, settings, callbacks, tools) {
+async function streamChatCompletion(messages, settings, callbacks, tools, signal) {
     const url = new url_1.URL(`${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`);
     const body = {
         model: settings.model,
@@ -137,7 +137,15 @@ async function streamChatCompletion(messages, settings, callbacks, tools) {
                 resolve();
             });
         });
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                req.destroy();
+                resolve();
+            }, { once: true });
+        }
         req.on('error', (err) => {
+            if (signal?.aborted)
+                return;
             callbacks.onError(`Request failed: ${err.message}`);
             resolve();
         });

@@ -33,7 +33,8 @@ export async function streamChatCompletion(
   messages: ChatMessage[],
   settings: ApiSettings,
   callbacks: StreamCallbacks,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  signal?: AbortSignal
 ): Promise<void> {
   const url = new URL(`${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`);
 
@@ -144,7 +145,15 @@ export async function streamChatCompletion(
       });
     });
 
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        req.destroy();
+        resolve();
+      }, { once: true });
+    }
+
     req.on('error', (err) => {
+      if (signal?.aborted) return;
       callbacks.onError(`Request failed: ${err.message}`);
       resolve();
     });

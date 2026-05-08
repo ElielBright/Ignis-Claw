@@ -268,21 +268,49 @@ html, body {
 }
 
 .chat-history-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 8px 12px;
   border-radius: var(--radius-xs);
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   margin-bottom: 2px;
 }
 
 .chat-history-item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.history-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+
+.chat-history-item:hover .history-delete-btn {
+  opacity: 1;
+}
+
+.history-delete-btn:hover {
+  color: var(--error);
 }
 
 .sidebar-footer {
@@ -641,6 +669,14 @@ html, body {
   box-shadow: none;
 }
 
+.send-btn.stop-btn {
+  background: linear-gradient(135deg, #DC2626, #991B1B);
+}
+.send-btn.stop-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
 .input-hint {
   text-align: center;
   font-size: 11px;
@@ -797,3 +833,5 @@ html, body {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+

@@ -10,6 +10,8 @@
   let attachedFiles = [];
 
   const $ = (sel) => document.querySelector(sel);
+  const stopIconSVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+  const sendIconSVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>';
 
   const onboarding = $("#onboarding");
   const chatScreen = $("#chat-screen");
@@ -42,6 +44,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     vscode.postMessage({ type: "getSettings" });
+    vscode.postMessage({ type: "loadConversations" });
     setupEventListeners();
   });
 
@@ -80,6 +83,17 @@
         break;
       case "toolEnd":
         finishToolCall(msg.toolCall, msg.result, msg.isError);
+        break;
+      case "conversationsList":
+        conversations = msg.conversations || [];
+        renderChatHistory();
+        break;
+      case "conversationLoaded":
+        loadConversationMessages(msg.messages, msg.title);
+        break;
+      case "cancelled":
+        removeCurrentStream();
+        appendMessage("assistant", "_\[Response cancelled\]_");
         break;
     }
   });
@@ -201,7 +215,7 @@
     onboarding.classList.add("hidden");
     chatScreen.classList.remove("hidden");
     modelBadge.textContent = settings.model || "unknown";
-    if (!currentConversation) {
+    if (!currentConversation || !messagesEl.querySelector(".welcome-message, .message")) {
       startNewChat();
     }
   }
@@ -214,8 +228,6 @@
     };
     chatHistory = [];
     attachedFiles = [];
-    conversations.push(currentConversation);
-    renderChatHistory();
     messagesEl.innerHTML = `
       <div class="welcome-message">
         <div class="welcome-logo">🔥</div>
@@ -238,19 +250,83 @@
   }
 
   function renderChatHistory() {
+    if (!chatHistoryEl) return;
     chatHistoryEl.innerHTML = conversations
       .slice()
       .reverse()
       .map(
         (c) =>
-          `<div class="chat-history-item" data-id="${c.id}">${c.title}</div>`
+          `<div class="chat-history-item" data-id="${c.id}" title="${escapeHtml(c.title)}">
+            <span class="history-item-title">${escapeHtml(c.title)}</span>
+            <button class="history-delete-btn" data-id="${c.id}" title="Delete conversation">×</button>
+          </div>`
       )
       .join("");
+
+    chatHistoryEl.querySelectorAll(".chat-history-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        if (e.target.classList.contains("history-delete-btn")) return;
+        const id = parseInt(item.dataset.id);
+        if (id === currentConversation?.id) return;
+        vscode.postMessage({ type: "loadConversation", id });
+      });
+    });
+
+    chatHistoryEl.querySelectorAll(".history-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.id);
+        if (confirm("Delete this conversation?")) {
+          vscode.postMessage({ type: "deleteConversation", id });
+          if (currentConversation?.id === id) {
+            startNewChat();
+          }
+        }
+      });
+    });
+  }
+
+  function loadConversationMessages(messages, title) {
+    messagesEl.innerHTML = "";
+    chatHistory = messages || [];
+    attachedFiles = [];
+
+    const hasMessages = messages && messages.length > 0;
+
+    if (!hasMessages) {
+      currentConversation = { id: Date.now(), title: "New Chat", messages: [] };
+      startNewChat();
+      return;
+    }
+
+    currentConversation = {
+      id: conversations.find(c => c.title === title || c.id === Date.now())?.id || Date.now(),
+      title: title || "Chat",
+      messages: messages,
+    };
+
+    for (const msg of messages) {
+      if (msg.role === "user") {
+        const content = typeof msg.content === "string" ? msg.content : "[File upload]";
+        appendMessage("user", content);
+      } else if (msg.role === "assistant") {
+        const content = typeof msg.content === "string" ? msg.content : "";
+        if (content) appendMessage("assistant", content);
+      }
+    }
+
+    renderChatHistory();
+    scrollToBottom();
   }
 
   function sendMessage() {
+    if (isStreaming) {
+      vscode.postMessage({ type: "cancelStream" });
+      return;
+    }
+
     const text = userInput.value.trim();
-    if (!text || isStreaming) return;
+    if (!text) return;
 
     const welcome = messagesEl.querySelector(".welcome-message");
     if (welcome) welcome.remove();
@@ -259,12 +335,18 @@
       currentConversation.title =
         text.substring(0, 40) + (text.length > 40 ? "..." : "");
       renderChatHistory();
+      vscode.postMessage({
+        type: "renameConversation",
+        id: currentConversation.id,
+        title: currentConversation.title,
+      });
     }
 
     userInput.value = "";
     userInput.style.height = "auto";
     isStreaming = true;
-    sendBtn.disabled = true;
+    sendBtn.innerHTML = stopIconSVG;
+    sendBtn.classList.add("stop-btn");
     setStatus("streaming", "Thinking...");
     showThinking();
 
@@ -360,6 +442,14 @@
     if (thinking) thinking.remove();
   }
 
+  function removeCurrentStream() {
+    if (currentStreamEl && currentStreamEl.parentNode) {
+      currentStreamEl.parentNode.removeChild(currentStreamEl);
+    }
+    currentStreamEl = null;
+    currentStreamContent = "";
+  }
+
   function startStreaming() {
     removeThinking();
     currentStreamEl = document.createElement("div");
@@ -386,7 +476,8 @@
     currentStreamEl = null;
     currentStreamContent = "";
     isStreaming = false;
-    sendBtn.disabled = false;
+    sendBtn.innerHTML = sendIconSVG;
+    sendBtn.classList.remove("stop-btn");
     setStatus("online", "Ready");
   }
 

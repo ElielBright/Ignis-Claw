@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ignis Claw 🔥</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -83,6 +84,15 @@
           <h2>Ignis Claw <span class="version-tag">v1.0</span></h2>
         </div>
         <div class="header-right">
+          <button id="doc-btn" class="icon-btn" title="Create Document (PDF/DOCX/PPTX)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </button>
           <span id="status-dot" class="status-dot online"></span>
           <span id="status-text" class="status-text">Ready</span>
         </div>
@@ -112,6 +122,44 @@
         <p class="input-hint">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line</p>
       </div>
     </main>
+  </div>
+
+  <!-- DOCUMENT CREATION MODAL -->
+  <div id="doc-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📄 Create Document</h3>
+        <button id="doc-modal-close" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="doc-topic">Topic</label>
+          <input type="text" id="doc-topic" placeholder="e.g. Introduction to Rust Programming" />
+        </div>
+        <div class="form-group">
+          <label for="doc-format">Format</label>
+          <select id="doc-format">
+            <option value="pdf">PDF Document</option>
+            <option value="docx">Word Document (DOCX)</option>
+            <option value="pptx">PowerPoint Presentation (PPTX)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="doc-content">Content (markdown)</label>
+          <textarea id="doc-content" rows="8" placeholder="Enter the content for your document...&#10;&#10;Use # for headings, ## for subheadings, etc."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Image URLs (optional, one per line)</label>
+          <textarea id="doc-images" rows="2" placeholder="https://example.com/image1.png&#10;https://example.com/image2.jpg"></textarea>
+        </div>
+        <div id="doc-status" class="doc-status"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="doc-cancel-btn" class="btn-secondary">Cancel</button>
+        <button id="doc-generate-btn" class="btn-primary">Generate 🔥</button>
+      </div>
+    </div>
   </div>
 
   <script src="main.js"></script>

@@ -33,20 +33,26 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getContext = getContext;
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const chatPanel_1 = require("./chatPanel");
 const fileHandler_1 = require("./fileHandler");
+let extensionContext;
+function getContext() {
+    return extensionContext;
+}
 function activate(context) {
+    extensionContext = context;
     context.subscriptions.push(vscode.commands.registerCommand('ignis-claw.start', () => {
-        chatPanel_1.ChatPanel.createOrShow(context.extensionUri);
+        chatPanel_1.ChatPanel.createOrShow(context.extensionUri, context);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('ignis-claw.uploadDesign', async () => {
         const files = await (0, fileHandler_1.uploadDesign)();
         if (!files)
             return;
-        const panel = chatPanel_1.ChatPanel.createOrShow(context.extensionUri);
+        const panel = chatPanel_1.ChatPanel.createOrShow(context.extensionUri, context);
         panel.addFilesToContext(files);
     }));
 }
