@@ -258,14 +258,16 @@
         (c) =>
           `<div class="chat-history-item" data-id="${c.id}" title="${escapeHtml(c.title)}">
             <span class="history-item-title">${escapeHtml(c.title)}</span>
-            <button class="history-delete-btn" data-id="${c.id}" title="Delete conversation">×</button>
+            <button class="history-delete-btn" data-id="${c.id}" title="Delete conversation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
           </div>`
       )
       .join("");
 
     chatHistoryEl.querySelectorAll(".chat-history-item").forEach((item) => {
       item.addEventListener("click", (e) => {
-        if (e.target.classList.contains("history-delete-btn")) return;
+        if (e.target.closest(".history-delete-btn")) return;
         const id = parseInt(item.dataset.id);
         if (id === currentConversation?.id) return;
         vscode.postMessage({ type: "loadConversation", id });
@@ -276,13 +278,39 @@
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const id = parseInt(btn.dataset.id);
-        if (confirm("Delete this conversation?")) {
-          vscode.postMessage({ type: "deleteConversation", id });
-          if (currentConversation?.id === id) {
-            startNewChat();
-          }
-        }
+        const item = btn.closest(".chat-history-item");
+        // Show inline confirm UI instead of window.confirm (not supported in webviews)
+        showDeleteConfirm(item, id);
       });
+    });
+  }
+
+  function showDeleteConfirm(item, id) {
+    // Replace the item content with a confirm/cancel UI
+    const originalHTML = item.innerHTML;
+    item.classList.add("confirming-delete");
+    item.innerHTML = `
+      <span class="delete-confirm-text">Delete this chat?</span>
+      <div class="delete-confirm-actions">
+        <button class="delete-confirm-yes" title="Yes, delete">✓</button>
+        <button class="delete-confirm-no" title="Cancel">✕</button>
+      </div>
+    `;
+
+    item.querySelector(".delete-confirm-yes").addEventListener("click", (e) => {
+      e.stopPropagation();
+      vscode.postMessage({ type: "deleteConversation", id });
+      if (currentConversation?.id === id) {
+        startNewChat();
+      }
+    });
+
+    item.querySelector(".delete-confirm-no").addEventListener("click", (e) => {
+      e.stopPropagation();
+      item.classList.remove("confirming-delete");
+      item.innerHTML = originalHTML;
+      // Re-attach event listeners for the restored buttons
+      renderChatHistory();
     });
   }
 
@@ -362,15 +390,21 @@
         badge.className = "file-badge";
         document.querySelector(".input-hint").before(badge);
       }
-      const items = attachedFiles.map((f, i) =>
-        `<span class="file-badge-item">
+      const items = attachedFiles.map((f, i) => {
+        const icon = f.isImage ? "🖼️" : "📄";
+        return `<span class="file-badge-item${f.isImage ? ' is-image' : ''}">
+          <span class="file-badge-icon">${icon}</span>
           <span class="file-badge-name">${escapeHtml(f.name)}</span>
-          <button class="file-badge-remove" data-index="${i}" title="Remove file">×</button>
-        </span>`
-      ).join(" ");
-      badge.innerHTML = "📎 " + items;
+          <button class="file-badge-remove" data-index="${i}" title="Remove ${escapeHtml(f.name)}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>`;
+      }).join("");
+      badge.innerHTML = items;
       badge.querySelectorAll(".file-badge-remove").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
           const index = parseInt(btn.dataset.index);
           vscode.postMessage({ type: "removeFile", index });
         });
