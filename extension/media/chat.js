@@ -229,10 +229,12 @@
     chatHistory = [];
     attachedFiles = [];
     messagesEl.innerHTML = `
-      <div class="welcome-message">
-        <div class="welcome-logo">🔥</div>
-        <h2>Welcome to Ignis Claw</h2>
-        <p>Your AI coding assistant. Chat, upload UI designs, build projects – all inside VS Code.</p>
+      <div class="welcome-message arcade-welcome">
+        <div class="welcome-logo">
+          <img src="${window.IGNIS_CLAW_LOGO}" alt="Ignis Claw Logo" class="custom-logo" />
+        </div>
+        <h2>SYSTEM_READY // IGNIS_CLAW_OS</h2>
+        <p>> INITIALIZING_COGNITIVE_CORE...<br>> AWAITING_USER_INPUT_</p>
         <div class="quick-actions">
           <button class="quick-btn" data-prompt="Read the current project structure and explain what it does">💡 Explain Project</button>
           <button class="quick-btn" data-prompt="Help me debug an error">🐛 Debug Error</button>

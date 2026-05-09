@@ -397,12 +397,13 @@ class ChatPanel {
     getHtml() {
         const stylesUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'styles.css'));
         const scriptUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'chat.js'));
+        const logoUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'logo.png'));
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this.panel.webview.cspSource} 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src data: https:; script-src 'nonce-ignis';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this.panel.webview.cspSource} 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src ${this.panel.webview.cspSource} data: https:; script-src 'nonce-ignis';">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -410,6 +411,7 @@ class ChatPanel {
   <title>Ignis Claw</title>
 </head>
 <body>
+  <div class="crt-overlay"></div>
   <div id="onboarding" class="screen">
     <div class="onboard-container">
       <div class="onboard-logo">
@@ -488,10 +490,12 @@ class ChatPanel {
       </div>
 
       <div id="messages" class="messages">
-        <div class="welcome-message">
-          <div class="welcome-logo">🔥</div>
-          <h2>Welcome to Ignis Claw</h2>
-          <p>Your AI coding assistant. Chat, upload UI designs, build projects – all inside VS Code.</p>
+        <div class="welcome-message arcade-welcome">
+          <div class="welcome-logo">
+            <img src="${logoUri}" alt="Ignis Claw Logo" class="custom-logo" />
+          </div>
+          <h2>SYSTEM_READY // IGNIS_CLAW_OS</h2>
+          <p>> INITIALIZING_COGNITIVE_CORE...<br>> AWAITING_USER_INPUT_</p>
           <div class="quick-actions">
             <button class="quick-btn" data-prompt="Read the current project structure and explain what it does">💡 Explain Project</button>
             <button class="quick-btn" data-prompt="Help me debug an error">🐛 Debug Error</button>
@@ -513,6 +517,9 @@ class ChatPanel {
     </main>
   </div>
 
+  <script nonce="ignis">
+    window.IGNIS_CLAW_LOGO = "${logoUri}";
+  </script>
   <script nonce="ignis" src="${scriptUri}"></script>
 </body>
 </html>`;
